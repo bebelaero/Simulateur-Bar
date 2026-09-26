@@ -33,9 +33,9 @@ a{color:var(--magenta)}
 :focus-visible{outline:2px solid var(--magenta);outline-offset:2px}
 .wrap{max-width:1240px;margin:0 auto;padding:16px 16px 40px;
   display:grid;gap:20px;grid-template-columns:minmax(0,1fr);
-  grid-template-areas:"head" "map" "form" "day" "spots" "foot"}
+  grid-template-areas:"head" "map" "form" "day" "week" "spots" "foot"}
 @media (min-width:980px){
-  .wrap{grid-template-columns:330px minmax(0,1fr);grid-template-areas:"head head" "form map" "form day" "form spots" "foot foot"}
+  .wrap{grid-template-columns:330px minmax(0,1fr);grid-template-areas:"head head" "form map" "form day" "form week" "form spots" "foot foot"}
   .form{position:sticky;top:12px;align-self:start;max-height:calc(100vh - 24px);overflow:auto}
 }
 header{grid-area:head}
@@ -101,6 +101,19 @@ table.hm{border-collapse:separate;border-spacing:2px;font-size:12px;min-width:72
 .hm tr.light th{font-size:11px;font-weight:500}
 .legend2{font-size:12px;color:var(--ink2);margin-top:6px}
 
+/* week strip */
+.week{grid-area:week}
+.wkrow{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
+.wkcard{flex:0 0 128px;border:1px solid var(--rule);border-radius:6px;padding:9px 10px;cursor:pointer;background:var(--card);
+  border-top:5px solid var(--c,#999)}
+.wkcard.sel{outline:2px solid var(--ink);outline-offset:-1px}
+.wkcard .wd{font-weight:700;font-stretch:82%;font-size:13.5px;text-transform:capitalize}
+.wkcard .wdate{font-size:11.5px;color:var(--ink2)}
+.wkcard .wsc{font-stretch:75%;font-weight:800;font-size:24px;line-height:1.2;margin-top:4px}
+.wkcard .wsp{font-size:12px;margin-top:2px}
+.wkcard .whr{font-size:11px;color:var(--ink2)}
+.wkcard.wdz .wsc{color:var(--danger);font-size:15px}
+
 /* spot cards */
 .spots{grid-area:spots;display:grid;gap:12px}
 .spot{background:var(--card);border:1px solid var(--rule);border-left:8px solid var(--c,#999);border-radius:6px;padding:12px 14px}
@@ -110,6 +123,9 @@ table.hm{border-collapse:separate;border-spacing:2px;font-size:12px;min-width:72
 .score{font-stretch:75%;font-weight:800;font-size:30px;line-height:1}
 .score small{font-size:13px;font-weight:600;color:var(--ink2);font-stretch:90%;margin-left:4px}
 .warn{background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger);border-radius:4px;padding:6px 9px;margin:8px 0 0;font-weight:600;font-size:13.5px}
+.obsnote{background:color-mix(in srgb,var(--magenta) 14%,transparent);color:var(--magenta);border-radius:4px;padding:6px 9px;margin:8px 0 0;font-weight:600;font-size:13.5px}
+.obsBtn{font:inherit;font-size:12.5px;font-weight:600;border:1px solid var(--rule);border-radius:20px;padding:6px 12px;margin-top:10px;background:var(--paper);color:var(--ink2);cursor:pointer}
+.obsBtn.on{background:var(--magenta);border-color:var(--magenta);color:#fff}
 .why{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;margin:10px 0 0;padding:0;list-style:none;font-size:13.5px}
 @media (max-width:560px){.why{grid-template-columns:1fr}}
 .why li{padding-left:16px;position:relative}
@@ -222,6 +238,12 @@ footer{grid-area:foot;font-size:12px;color:var(--ink2);border-top:1px solid var(
   <p class="legend2">Marée : ↑ montant, ↓ descendant, suivi de l'heure de marée ; PM pleine mer, BM basse mer. Lumière : ☾ nuit, ◐ aube, ○ journée, ☀ plein jour, ◑ crépuscule.<br>Touche une case pour choisir cette heure. La houle, le vent et le ciel sont supposés constants sur la journée ; la marée et la lumière changent heure par heure.</p>
 </section>
 
+<section class="week" id="weekSec" aria-label="Les prochains jours" style="display:none">
+  <h2>Les prochains jours</h2>
+  <div class="wkrow" id="wkrow"></div>
+  <p class="legend2">Pour chaque jour : le meilleur créneau tous spots confondus, d'après les prévisions. Touche un jour pour l'ouvrir en détail ci-dessus. Fiabilité décroissante au-delà de 2-3 jours, surtout pour la houle et la pluie amont ; recroise toujours avec une source météo la veille du jour choisi.</p>
+</section>
+
 <section class="spots" id="spots" aria-label="Détail par spot"></section>
 
 <footer>
@@ -293,6 +315,8 @@ function read(){
 }
 const hm2d=s=>{const [a,b]=s.split(':').map(Number);return a+(b||0)/60;};
 const fmtH=h=>{h=((h%24)+24)%24;const m=Math.round((h%1)*60);let H=Math.floor(h);if(m===60)return pad(H+1)+' h 00';return H+' h '+pad(m);};
+const addDays=(dateStr,n)=>{const [y,m,d]=dateStr.split('-').map(Number);const dt=new Date(y,m-1,d+n);return `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`;};
+const WD=["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
 
 // ---- sun ----
 const R=Math.PI/180;
@@ -578,6 +602,9 @@ SPOTS.forEach(sp=>{
 });
 const esc=s=>String(s).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 
+// activité de surface observée sur place (prime sur le modèle, jamais sur la sécurité)
+const OBS={};
+
 function render(){
   const c0=read();
   const S=sun(c0.date), t=hm2d(c0.time);
@@ -585,6 +612,7 @@ function render(){
   if(c!==c0){const sv={};AUTO.forEach(k=>sv[k]=c[k]);setVals(sv);}
   try{localStorage.setItem('barsim',JSON.stringify(Object.assign({},c,{date:undefined,time:undefined})));}catch(e){}
   const res=SPOTS.map(sp=>evalSpot(sp,c,t,S));
+  res.forEach(r=>{if(OBS[r.sp.id]&&!r.danger){r.score=Math.max(r.score,95);r.observed=true;}});
   const T0=res[0].T;
   document.getElementById('tideTxt').textContent=`À ${fmtH(t)} : ${tideLabel(T0)}. Lever ${fmtH(S.rise)}, coucher ${fmtH(S.set)}.`;
   const w0=localWave(c);
@@ -623,7 +651,7 @@ function render(){
   });
   html+='</tbody>';
   const hmEl=document.getElementById('hm'); hmEl.innerHTML=html;
-  hmEl.querySelectorAll('td[data-h]').forEach(td=>td.addEventListener('click',()=>{f.elements.time.value=pad(+td.dataset.h)+':30';render();}));
+  hmEl.querySelectorAll('td[data-h]').forEach(td=>td.addEventListener('click',()=>{f.elements.time.value=pad(+td.dataset.h)+':30';for(const k in OBS) delete OBS[k];render();}));
   // cards
   const sorted=[...res].sort((a,b)=>(a.danger-b.danger)||(b.score-a.score));
   document.getElementById('spots').innerHTML='<h2>Détail par spot à '+fmtH(t)+'</h2>'+sorted.map(r=>{
@@ -634,14 +662,62 @@ function render(){
     return `<article class="spot${r.danger?' dz':''}" id="card-${r.sp.id}" style="--c:${col(r.score)}">
       <div class="sh"><h3>${esc(r.sp.name)}</h3><div class="score" style="color:${r.danger?'var(--danger)':col(r.score)}">${r.danger?'Déconseillé':r.score}<small>${r.danger?'':'/ 100'}</small></div></div>
       ${r.warns.map(w=>`<p class="warn">${esc(w)}</p>`).join('')}
+      ${r.observed?`<p class="obsnote">Activité de surface repérée ici : note ajustée en priorité sur le modèle.${r.warns.length?' La sécurité reste prioritaire malgré tout.':''}</p>`:''}
       <ul class="why">${rs.map(o=>`<li class="${o.pos?'p':'n'}">${esc(o.t)}</li>`).join('')}</ul>
       <p class="poste"><strong>Poste :</strong> ${esc(poste(r))} ${esc(bw)}</p>
       <dl class="lure"><dt>Leurre</dt><dd>${esc(L.type)}</dd><dt>Animation</dt><dd>${esc(L.anim)}</dd><dt>Couleur</dt><dd>${esc(L.col)}</dd><dt>Bas de ligne</dt><dd>${esc(L.bdl)}</dd></dl>
       <div class="bars">${r.F.map(x=>`<span><b style="width:${Math.round(x*100)}%"></b></span>`).join('')}</div>
       <div class="barl">${fl.map(x=>`<span>${x}</span>`).join('')}</div>
+      ${r.danger?'':`<button type="button" class="obsBtn${r.observed?' on':''}" data-obs="${r.sp.id}">${r.observed?'✓ Chasse observée ici — désactiver':'Chasse / oiseaux repérés ici'}</button>`}
     </article>`;}).join('');
+  document.querySelectorAll('.obsBtn').forEach(btn=>btn.addEventListener('click',()=>{
+    const id=btn.dataset.obs; OBS[id]=!OBS[id]; render();
+  }));
+  renderWeek(c0);
+}
+
+function dayBest(dateStr,c0){
+  const cD=Object.assign({},c0,{date:dateStr});
+  const S=sun(dateStr);
+  let top=null;
+  for(const sp of SPOTS){
+    let bi=-1,bv=-1;
+    for(let h=5;h<=23;h++){
+      const r=evalSpot(sp,condAt(cD,h+.5),h+.5,S);
+      if(r.danger) continue;
+      if(r.score>bv){bv=r.score;bi=h;}
+    }
+    if(bi>=0&&bv>(top?top.score:-1)) top={sp,score:bv,hour:bi};
+  }
+  return {date:dateStr,top};
+}
+function renderWeek(c0){
+  const sec=document.getElementById('weekSec');
+  if(!WX||!autoOn.checked){sec.style.display='none';return;}
+  sec.style.display='';
+  const today=DEF.date;
+  const days=[]; for(let n=0;n<7;n++) days.push(addDays(today,n));
+  const html=days.map((d,i)=>{
+    const {top}=dayBest(d,c0);
+    const [y,m,dd]=d.split('-').map(Number);
+    const wd=WD[new Date(y,m-1,dd).getDay()];
+    const sel=d===c0.date;
+    if(!top) return `<div class="wkcard wdz${sel?' sel':''}" data-day="${d}"><div class="wd">${i===0?"Aujourd'hui":wd}</div><div class="wdate">${pad(dd)}/${pad(m)}</div><div class="wsc">Aucun créneau sûr</div></div>`;
+    return `<div class="wkcard${sel?' sel':''}" data-day="${d}" style="--c:${col(top.score)}">
+      <div class="wd">${i===0?"Aujourd'hui":wd}</div><div class="wdate">${pad(dd)}/${pad(m)}</div>
+      <div class="wsc" style="color:${col(top.score)}">${top.score}</div>
+      <div class="wsp">${esc(top.sp.name)}</div><div class="whr">vers ${top.hour} h</div>
+    </div>`;
+  }).join('');
+  const row=document.getElementById('wkrow'); row.innerHTML=html;
+  row.querySelectorAll('.wkcard').forEach(card=>card.addEventListener('click',()=>{
+    for(const k in OBS) delete OBS[k];
+    f.elements.date.value=card.dataset.day; render();
+    document.getElementById('hm').scrollIntoView({behavior:'smooth',block:'start'});
+  }));
 }
 f.addEventListener('input',e=>{
+  if(e.target&&(e.target.name==='date'||e.target.name==='time')){for(const k in OBS) delete OBS[k];}
   if(autoOn.checked&&e.target&&AUTO.includes(e.target.name)){autoOn.checked=false;autoTxt.textContent="Mode manuel : tes valeurs remplacent les prévisions. Recoche la case pour revenir aux prévisions.";}
   render();});
 f.addEventListener('change',e=>{if(e.target===autoOn)return;render();});
