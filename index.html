@@ -129,11 +129,8 @@ table.hm{border-collapse:separate;border-spacing:2px;font-size:12px;min-width:72
 .creneau.none{color:var(--danger);font-weight:700;font-size:13.5px}
 .tidechart{margin-top:8px}
 .tc-row{display:flex;align-items:flex-end;gap:2px;height:32px}
-.tc-h{flex:1;background:color-mix(in srgb,var(--ink2) 45%,transparent);border-radius:2px 2px 0 0;min-width:3px}
-.tc-h.win{background:var(--magenta)}
-.tc-strip{height:6px;margin-top:2px}
-.tc-s{flex:1;border-radius:2px;min-width:3px}
-.tc-s.win{outline:1px solid var(--ink);outline-offset:0}
+.tc-h{flex:1;border-radius:2px 2px 0 0;min-width:3px}
+.tc-h.win{outline:2px solid var(--ink);outline-offset:-1px}
 .tc-labels{display:flex;gap:2px;font-size:9px;color:var(--ink2);margin-top:2px}
 .tc-labels span{flex:1;text-align:center}
 .warn{background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger);border-radius:4px;padding:6px 9px;margin:8px 0 0;font-weight:600;font-size:13.5px}
@@ -676,14 +673,11 @@ function tideChart(row,hours,bi){
   const bars=row.map((r,i)=>{
     const hpx=Math.round((1+Math.cos(2*Math.PI*r.T.x/TP))/2*100);
     const inWin=bi>=0&&(i===bi||i===bi+1);
-    return `<div class="tc-h${inWin?' win':''}" style="height:${Math.max(8,hpx)}%"></div>`;
-  }).join('');
-  const strip=row.map((r,i)=>{
-    const inWin=bi>=0&&(i===bi||i===bi+1);
-    return `<div class="tc-s${inWin?' win':''}" style="background:${r.danger?'var(--danger)':col(r.score)}"></div>`;
+    const bg=r.danger?'var(--danger)':col(r.score);
+    return `<div class="tc-h${inWin?' win':''}" style="height:${Math.max(8,hpx)}%;background:${bg}"></div>`;
   }).join('');
   const labels=hours.map(h=>`<span>${h%3===0?h+'h':''}</span>`).join('');
-  return `<div class="tidechart"><div class="tc-row">${bars}</div><div class="tc-row tc-strip">${strip}</div><div class="tc-labels">${labels}</div></div>`;
+  return `<div class="tidechart"><div class="tc-row">${bars}</div><div class="tc-labels">${labels}</div></div>`;
 }
 
 // activité de surface observée sur place (prime sur le modèle, jamais sur la sécurité)
