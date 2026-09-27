@@ -61,7 +61,7 @@ h2{font-stretch:82%;font-weight:750;font-size:20px;margin:0 0 10px;line-height:1
 .verdict .ctx{color:var(--ink2)}
 .scale{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px;color:var(--ink2);font-size:12.5px}
 .scale i{display:block;height:8px;flex:0 0 160px;border-radius:4px;
-  background:linear-gradient(90deg,hsl(0 70% 46%),hsl(35 85% 50%),hsl(60 75% 45%),hsl(100 55% 40%),hsl(130 55% 36%))}
+  background:linear-gradient(90deg,#d03b3b 0 30%,#ec835a 30% 50%,#fab219 50% 70%,#0ca30c 70% 100%)}
 .attr{font-size:11px;color:var(--ink2);margin-top:6px}
 
 /* form */
@@ -657,7 +657,17 @@ autoBtn.addEventListener('click',loadWx);
 autoOn.addEventListener('change',()=>{autoTxt.textContent=autoOn.checked?"Prévisions heure par heure utilisées.":"Mode manuel : tes valeurs remplacent les prévisions.";render();});
 
 // ---- render ----
-const col=s=>`hsl(${Math.round(s*1.3)} ${s>50?55:70}% ${s>50?38:46}%)`;
+// échelle de statut fixe (bon/moyen/faible/critique), 4 teintes bien distinctes plutôt qu'un dégradé continu
+const STATUS=[
+  {min:70,bg:'#0ca30c',text:'#0ca30c',fg:'#fff'}, // bon
+  {min:50,bg:'#fab219',text:'#8a5a00',fg:'#2a1d00'}, // moyen (jaune pur illisible en texte clair ou blanc dessus)
+  {min:30,bg:'#ec835a',text:'#a84a2a',fg:'#fff'}, // faible
+  {min:0, bg:'#d03b3b',text:'#d03b3b',fg:'#fff'}  // critique
+];
+const statusOf=s=>STATUS.find(t=>s>=t.min)||STATUS[STATUS.length-1];
+const col=s=>statusOf(s).bg;
+const colText=s=>statusOf(s).text;
+const colFg=s=>statusOf(s).fg;
 const chart=document.getElementById('chart');
 const mkEls={};
 SPOTS.forEach(sp=>{
@@ -747,13 +757,14 @@ function render(){
   // markers
   res.forEach(r=>{const b=mkEls[r.sp.id];
     b.style.background=r.danger?'var(--danger)':col(r.score);
+    b.style.color=r.danger?'#fff':colFg(r.score);
     b.classList.toggle('flag',r.danger);
     b.querySelector('.sc').textContent=r.danger?'!':r.score;
     b.setAttribute('aria-label',`${r.sp.name} : ${r.danger?'déconseillé':r.score+' sur 100'}`);});
   // verdict
   const ok=res.filter(r=>!r.danger).sort((a,b)=>b.score-a.score);
   const vb=document.getElementById('vBig'), vc=document.getElementById('vCtx');
-  if(ok.length){vb.textContent=`${ok[0].sp.name}, ${ok[0].score}/100`;vb.style.color=col(ok[0].score);
+  if(ok.length){vb.textContent=`${ok[0].sp.name}, ${ok[0].score}/100`;vb.style.color=colText(ok[0].score);
     vc.textContent=`à ${fmtH(t)}, ${LIGHTNAME[ok[0].light].toLowerCase()}, ${tideLabel(T0).toLowerCase()}`;}
   else{vb.textContent="Aucun spot sûr à cette heure";vb.style.color='var(--danger)';vc.textContent="Choisis une autre heure ou reste à terre.";}
   // heatmap
@@ -768,7 +779,7 @@ function render(){
     html+=`<tr><th class="sp">${sp.name}</th>`+row.map((r,i)=>{
       const isNow=Math.floor(t)===hours[i];
       return r.danger?`<td class="dz${isNow?' now':''}" data-h="${hours[i]}" title="${sp.name} ${hours[i]} h : déconseillé">✕</td>`
-        :`<td class="${isNow?'now':''}" data-h="${hours[i]}" style="background:${col(r.score)}" title="${sp.name} ${hours[i]} h : ${r.score}">${r.score}</td>`;}).join('')+'</tr>';
+        :`<td class="${isNow?'now':''}" data-h="${hours[i]}" style="background:${col(r.score)};color:${colFg(r.score)}" title="${sp.name} ${hours[i]} h : ${r.score}">${r.score}</td>`;}).join('')+'</tr>';
     let bi=-1,bv=-1;for(let i=0;i<row.length-1;i++){if(row[i].danger||row[i+1].danger)continue;const m=(row[i].score+row[i+1].score)/2;if(m>bv){bv=m;bi=i;}}
     best.push({sp,bi,bv});
   });
@@ -785,7 +796,7 @@ function render(){
     const L=lure(r,c), rs=reasons(r);
     const fl=["Courant","Lumière","Mer","Vent","Eau"];
     return `<article class="spot${r.danger?' dz':''}" id="card-${r.sp.id}" style="--c:${col(r.score)}">
-      <div class="sh"><h3>${esc(r.sp.name)}</h3><div class="score" style="color:${r.danger?'var(--danger)':col(r.score)}">${r.danger?'Déconseillé':r.score}<small>${r.danger?'':'/ 100'}</small></div></div>
+      <div class="sh"><h3>${esc(r.sp.name)}</h3><div class="score" style="color:${r.danger?'var(--danger)':colText(r.score)}">${r.danger?'Déconseillé':r.score}<small>${r.danger?'':'/ 100'}</small></div></div>
       ${creneau}
       ${tideChart(rowsBySpot[r.sp.id],hours,b.bi)}
       ${r.warns.map(w=>`<p class="warn">${esc(w)}</p>`).join('')}
@@ -853,7 +864,7 @@ function renderWeek(c0){
     if(!top) return `<div class="wkcard wdz${sel?' sel':''}" data-day="${d}"><div class="wd">${i===0?"Aujourd'hui":wd}</div><div class="wdate">${pad(dd)}/${pad(m)}</div><div class="wsc">Aucun créneau sûr</div></div>`;
     return `<div class="wkcard${sel?' sel':''}" data-day="${d}" style="--c:${col(top.score)}">
       <div class="wd">${i===0?"Aujourd'hui":wd}</div><div class="wdate">${pad(dd)}/${pad(m)}</div>
-      <div class="wsc" style="color:${col(top.score)}">${top.score}</div>
+      <div class="wsc" style="color:${colText(top.score)}">${top.score}</div>
       <div class="wsp">${esc(top.sp.name)}</div><div class="whr">vers ${top.hour} h</div>
     </div>`;
   }).join('');
