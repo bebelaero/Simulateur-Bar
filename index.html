@@ -290,13 +290,13 @@ const SEGS={
 const LAT=47.79, LON=-3.70;
 
 const SPOTS=[
- {id:"kerfany",name:"Kerfany",x:35.8,y:35.9,face:270,kind:"mouth",w:[.28,.26,.10,.14,.22]},
- {id:"manech",name:"Port Manec'h",x:29.4,y:33.4,face:135,kind:"mouth",w:[.34,.22,.06,.14,.24]},
- {id:"aven",name:"Aven intérieur",x:28.7,y:17.0,face:null,kind:"inner",w:[.34,.26,.04,.12,.24]},
- {id:"malachappe",name:"Malachappe",x:51.2,y:58.0,face:225,kind:"exposed",w:[.14,.30,.32,.10,.14]},
- {id:"doelan",name:"Doëlan",x:71.4,y:68.6,face:190,kind:"semi",w:[.28,.26,.16,.14,.16]},
- {id:"laita",name:"Laïta",x:95.4,y:75.7,face:220,kind:"estuary",w:[.28,.30,.08,.10,.24]},
- {id:"raguenes",name:"Raguénès",x:10.1,y:67.0,face:200,kind:"exposed",w:[.14,.30,.32,.10,.14]}
+ {id:"kerfany",name:"Kerfany",x:35.8,y:35.9,face:270,kind:"mouth",w:[.28,.26,.10,.14,.22],lat:47.8083,lon:-3.7167},
+ {id:"manech",name:"Port Manec'h",x:29.4,y:33.4,face:135,kind:"mouth",w:[.34,.22,.06,.14,.24],lat:47.8012,lon:-3.7416},
+ {id:"aven",name:"Aven intérieur",x:28.7,y:17.0,face:null,kind:"inner",w:[.34,.26,.04,.12,.24],lat:47.828,lon:-3.757},
+ {id:"malachappe",name:"Malachappe",x:51.2,y:58.0,face:225,kind:"exposed",w:[.14,.30,.32,.10,.14],lat:47.7835,lon:-3.6706},
+ {id:"doelan",name:"Doëlan",x:71.4,y:68.6,face:190,kind:"semi",w:[.28,.26,.16,.14,.16],lat:47.7729,lon:-3.6091},
+ {id:"laita",name:"Laïta",x:95.4,y:75.7,face:220,kind:"estuary",w:[.28,.30,.08,.10,.24],lat:47.7683,lon:-3.5327},
+ {id:"raguenes",name:"Raguénès",x:10.1,y:67.0,face:200,kind:"exposed",w:[.14,.30,.32,.10,.14],lat:47.7841,lon:-3.8009}
 ];
 
 const f=document.getElementById('f');
@@ -440,11 +440,14 @@ function evalSpot(sp,c,t,S){
   else if(sp.kind==='mouth'){M=w<1.5?(w>=.4&&w<=1.2?1:.95):w<=2.5?.75:.45;}
   else if(sp.kind==='estuary'){M=w<1.2?1:w<=2?.8:.5;}
   else M=1;
-  // wind
-  const v=sp.kind==='inner'?c.v*.6:c.v;
+  // wind (vent local au spot si dispo, sinon repli sur le point générique)
+  const spW=spotWindAt(sp.id,c.date,t);
+  const vRaw=spW?spW.v:c.v, vdRaw=spW?spW.vd:c.vd;
+  const vDanger=Math.max(vRaw,(spW&&spW.gust!=null)?spW.gust*0.75:0); // rafales : marge de sécurité, pas dans la note
+  const v=sp.kind==='inner'?vRaw*.6:vRaw;
   const s=v<4?.6:v<=15?1:v<=20?.8:v<=25?.55:v<=30?.3:.08;
   let V=s;
-  if(sp.face!=null){const co=Math.cos(angDiff(c.vd,sp.face)*R); V=v<=18?s*(.85+.15*co):s*(.85-.15*co);}
+  if(sp.face!=null){const co=Math.cos(angDiff(vdRaw,sp.face)*R); V=v<=18?s*(.85+.15*co):s*(.85-.15*co);}
   // water
   let E={claire:low?.9:.6,teintee:1,trouble:.75,chargee:.35}[cl];
   if(sp.id==='laita'&&cl!=='chargee')E+= c.rain==='moderee'?.15:c.rain==='forte'?.2:0;
@@ -462,8 +465,8 @@ function evalSpot(sp,c,t,S){
     if(w>lim({deb:1.2,inter:1.8,conf:2.5})){danger=true;warns.push(`Houle trop forte pour ton niveau sur les rochers de Raguénès (${w.toFixed(1)} m à la côte).`);}
     if(T.dir==='mont'&&!T.slackPM&&!T.slackBM) warns.push("Mer qui remonte : le passage vers l'île se couvre. Ne pas rester sur l'île, pêcher depuis la côte.");
   }
-  if(c.v>30&&sp.kind!=='inner'){danger=true;warns.push("Vent de plus de 30 nœuds : côte trop dangereuse.");}
-  if(sp.kind==='inner'&&c.v>40){danger=true;warns.push("Vent de plus de 40 nœuds : ne pas sortir.");}
+  if(vDanger>30&&sp.kind!=='inner'){danger=true;warns.push(vRaw<=30?`Rafales à ${spW.gust} nœuds : au-delà d'un vent moyen de 30 nœuds en effet, côte trop dangereuse.`:"Vent de plus de 30 nœuds : côte trop dangereuse.");}
+  if(sp.kind==='inner'&&vDanger>40){danger=true;warns.push("Vent de plus de 40 nœuds : ne pas sortir.");}
   if(sp.id==='malachappe'){
     if(w>lim({deb:1,inter:1.6,conf:2.3})){danger=true;warns.push(`Houle trop forte pour ton niveau sur la digue (${w.toFixed(1)} m à la côte). Les vagues peuvent passer sur la digue.`);}
     if(light==='nuit'&&c.lvl==='deb'){danger=true;warns.push("Pas de digue exposée de nuit quand on débute.");}
@@ -475,7 +478,7 @@ function evalSpot(sp,c,t,S){
     else if(w>2){danger=true;warns.push("Houle trop forte à l'embouchure de la Laïta.");} }
   if(!danger&&light==='nuit'&&c.lvl==='deb'&&sp.kind!=='inner') warns.push("De nuit : frontale, jamais seul, rester sur la plage ou la cale.");
   if(!danger&&c.coef>=100&&c.lvl==='deb') warns.push("Gros coefficient : courant violent et mer qui monte vite, surveille ta retraite.");
-  return {sp,score,danger,warns,F,T,light,low,w,cl,anse,v:c.v};
+  return {sp,score,danger,warns,F,T,light,low,w,cl,anse,v:vRaw,vd:vdRaw};
 }
 
 // ---- texts ----
@@ -522,7 +525,7 @@ function lure(r,c){
   else if(foam){type=`Stickbait ou popper flottant, ${size}`;anim="Dans la mousse, tout près des rochers. Alternative : shad texan sans plomb dans les remous.";}
   else if(shallow){type=`Leurre de surface (stickbait), ${size}`;anim="Zigzag régulier en surface. Alternative : souple léger non plombé.";}
   else if(strong){type=`Shad lesté ${size}, tête de ${g}`+(medium?" (prendre le bas de la fourchette, courant moyen)":"");anim="Lancé trois-quarts amont, laissé couler puis ramené près du fond en dérive.";}
-  else if(c.v>18&&sp.face!=null&&Math.cos(angDiff(c.vd,sp.face)*R)>.3){type="Slug ou leurre métallique 25–40 g";anim="Pour percer le vent de face ; ramener vite, par à-coups.";}
+  else if(r.v>18&&sp.face!=null&&Math.cos(angDiff(r.vd,sp.face)*R)>.3){type="Slug ou leurre métallique 25–40 g";anim="Pour percer le vent de face ; ramener vite, par à-coups.";}
   else {type=`Leurre à bavette (minnow) ou shad léger, ${size}`;anim="Courant faible : prospecter large, en éventail, vitesse moyenne.";}
   let col;
   if(r.light==='nuit') col="Sombre (noir, violet) pour la silhouette, ou blanc.";
@@ -537,6 +540,7 @@ function lure(r,c){
 
 // ---- auto weather (Open-Meteo) ----
 let WX=null;
+let WXW=null; // vent par spot (le point générique WX sous-estime le vent local, cf. comparaison app tierce 2026-09-27)
 const AUTO=['pm','coef','h','t','hd','v','vd','gale','sky','rain','riverrain','press','sst'];
 const autoOn=document.getElementById('autoOn'), autoTxt=document.getElementById('autoTxt'), autoBtn=document.getElementById('autoBtn');
 const n45=d=>(Math.round(((d%360)+360)%360/45)%8)*45;
@@ -546,6 +550,7 @@ async function loadWx(){
   const qs='&timezone=Europe%2FParis&past_days=6&forecast_days=7';
   const uW='https://api.open-meteo.com/v1/forecast?latitude=47.80&longitude=-3.70&hourly=wind_speed_10m,wind_direction_10m,cloud_cover,precipitation,pressure_msl&wind_speed_unit=kn'+qs;
   const uM='https://marine-api.open-meteo.com/v1/marine?latitude=47.76&longitude=-3.70&hourly=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_period,sea_surface_temperature,sea_level_height_msl&cell_selection=sea'+qs;
+  const uWspots='https://api.open-meteo.com/v1/forecast?latitude='+SPOTS.map(s=>s.lat).join(',')+'&longitude='+SPOTS.map(s=>s.lon).join(',')+'&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kn'+qs;
   try{
     const [a,b]=await Promise.all([getJ(uW),getJ(uM)]);
     WX=buildWx(a.hourly,b.hourly);
@@ -553,10 +558,28 @@ async function loadWx(){
     const d=new Date();
     autoTxt.textContent=`Prévisions chargées à ${d.getHours()} h ${pad(d.getMinutes())}. Marée calculée par un modèle : vérifie l'heure de pleine mer et le coefficient sur maree.info. La clarté de l'eau reste à observer sur place.`;
     render();
+    getJ(uWspots).then(arr=>{
+      WXW={};
+      SPOTS.forEach((sp,i)=>{
+        const h=Array.isArray(arr)?arr[i]?.hourly:null; if(!h) return;
+        const idx={}; h.time.forEach((tm,k)=>idx[tm]=k);
+        WXW[sp.id]={idx,wind_speed_10m:h.wind_speed_10m,wind_direction_10m:h.wind_direction_10m,wind_gusts_10m:h.wind_gusts_10m};
+      });
+      render();
+    }).catch(()=>{WXW=null;});
   }catch(e){
     autoOn.checked=false; autoOn.disabled=true;
     autoTxt.textContent="Remplissage automatique impossible ici : la version publiée sur Claude ne peut pas contacter d'autres sites. Ouvre la version téléchargée du simulateur, ou saisis les chiffres ci-dessous.";
   }finally{autoBtn.disabled=false;}
+}
+function spotWindAt(spotId,dateStr,hour){
+  if(!WXW||!WXW[spotId]) return null;
+  const key=`${dateStr}T${pad(Math.floor(hour)%24)}:00`;
+  const i=WXW[spotId].idx[key]; if(i==null) return null;
+  const v=WXW[spotId].wind_speed_10m[i], vd=WXW[spotId].wind_direction_10m[i];
+  const gust=WXW[spotId].wind_gusts_10m?WXW[spotId].wind_gusts_10m[i]:null;
+  if(v==null||vd==null) return null;
+  return {v:Math.round(v),vd:n45(vd),gust:gust!=null?Math.round(gust):null};
 }
 function buildWx(W,M){
   const idx={}; W.time.forEach((tm,i)=>idx[tm]=i);
@@ -765,7 +788,7 @@ function render(){
       id:'log_'+Date.now()+'_'+id,
       date:c0.date, time:c0.time, spotId:id, spotName:r.sp.name,
       score:r.score, danger:r.danger, count, note:(noteEl.value||'').trim(),
-      cond:{coef:c.coef,houle:r.w.toFixed(1),periode:c.t,vent:c.v,ventDir:c.vd,ciel:c.sky,pluie:c.rain,pluieTerre:c.riverrain,pression:c.press,eauTemp:c.sst,clarte:CLARNAME[r.cl]||r.cl,lumiere:LIGHTNAME[r.light],maree:tideLabel(r.T),auto:autoOn.checked}
+      cond:{coef:c.coef,houle:r.w.toFixed(1),periode:c.t,vent:r.v,ventDir:r.vd,ciel:c.sky,pluie:c.rain,pluieTerre:c.riverrain,pression:c.press,eauTemp:c.sst,clarte:CLARNAME[r.cl]||r.cl,lumiere:LIGHTNAME[r.light],maree:tideLabel(r.T),auto:autoOn.checked}
     });
     countEl.value=''; noteEl.value='';
     btn.textContent='✓ Enregistré'; btn.classList.add('ok');
