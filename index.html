@@ -613,7 +613,9 @@ function lure(r,c){
   else col=(c.sky==='couvert'||c.sky==='pluie')?"Blanc, perle, argenté.":"Naturelle avec reflets : argenté, blanc nacré.";
   const bdl=(r.cl==='claire'&&!foam)?"Fluorocarbone 30–35/100, 1,5 à 2 m.":"Fluorocarbone 40/100, plus résistant sur les rochers.";
   const speed=c.sst<12?"Eau froide : ralentir toutes les animations.":c.sst>16?"Eau tiède : animation vive possible.":"";
-  return {type,anim:anim+(speed?" "+speed:""),col,bdl};
+  const mood=r.light==='nuit'?"":r.score>=72?"Poisson probablement actif : anime plus vite, réduis les pauses.":
+    r.score<40?"Conditions justes : ralentis, allonge les pauses, reste discret.":"";
+  return {type,anim:anim+(speed?" "+speed:"")+(mood?" "+mood:""),col,bdl};
 }
 
 // ---- auto weather (Open-Meteo) ----
