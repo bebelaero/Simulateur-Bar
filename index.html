@@ -33,9 +33,9 @@ a{color:var(--magenta)}
 :focus-visible{outline:2px solid var(--magenta);outline-offset:2px}
 .wrap{max-width:1240px;margin:0 auto;padding:16px 16px 40px;
   display:grid;gap:20px;grid-template-columns:minmax(0,1fr);
-  grid-template-areas:"head" "map" "form" "day" "week" "spots" "log" "foot"}
+  grid-template-areas:"head" "map" "form" "day" "week" "spots" "myspots" "log" "foot"}
 @media (min-width:980px){
-  .wrap{grid-template-columns:330px minmax(0,1fr);grid-template-areas:"head head" "form map" "form day" "form week" "form spots" "form log" "foot foot"}
+  .wrap{grid-template-columns:330px minmax(0,1fr);grid-template-areas:"head head" "form map" "form day" "form week" "form spots" "form myspots" "form log" "foot foot"}
   .form{position:sticky;top:12px;align-self:start;max-height:calc(100vh - 24px);overflow:auto}
 }
 header{grid-area:head}
@@ -170,6 +170,13 @@ table.lg th{color:var(--ink2);font-weight:600;font-stretch:85%}
 table.lg .lgDel{border:0;background:none;color:var(--danger);cursor:pointer;font-size:14px;padding:2px 6px}
 table.lg .lgSc{font-weight:700}
 table.lg details{font-size:11.5px;color:var(--ink2)}
+
+/* mes spots */
+.myspots{grid-area:myspots;background:var(--card);border:1px solid var(--rule);border-radius:6px;padding:14px}
+.addspot .row{margin-bottom:8px}
+.addspot button{font:inherit;font-weight:700;background:var(--ink);color:var(--paper);border:0;border-radius:4px;padding:8px 14px;min-height:38px;cursor:pointer}
+.msrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--rule);font-size:13.5px}
+.msDel{border:0;background:none;color:var(--danger);cursor:pointer;font-size:12.5px;font-weight:600}
 footer{grid-area:foot;font-size:12px;color:var(--ink2);border-top:1px solid var(--rule);padding-top:10px}
 @media (prefers-reduced-motion:no-preference){.mk{transition:background .25s}}
 </style>
@@ -275,6 +282,42 @@ footer{grid-area:foot;font-size:12px;color:var(--ink2);border-top:1px solid var(
 
 <section class="spots" id="spots" aria-label="Détail par spot"></section>
 
+<section class="myspots" id="myspotsSec" aria-label="Mes spots">
+  <h2>Mes spots</h2>
+  <form class="addspot" id="addSpotForm">
+    <div class="row">
+      <label class="f">Nom<input type="text" name="msName" placeholder="Ex. Pointe du Guilvinec" required></label>
+    </div>
+    <div class="row">
+      <label class="f">Latitude<input type="number" name="msLat" step="0.0001" placeholder="47.80" required></label>
+      <label class="f">Longitude<input type="number" name="msLon" step="0.0001" placeholder="-3.70" required></label>
+    </div>
+    <div class="row">
+      <label class="f">Type de terrain<select name="msKind">
+        <option value="exposed">Rocher exposé / pointe battue</option>
+        <option value="semi">Digue / jetée semi-abritée</option>
+        <option value="mouth">Embouchure de rivière</option>
+        <option value="estuary">Estuaire large</option>
+        <option value="inner">Crique / chenal abrité</option>
+      </select></label>
+      <label class="f">Face à la mer<select name="msFace">
+        <option value="">Je ne sais pas</option>
+        <option value="0">Nord</option>
+        <option value="45">Nord-Est</option>
+        <option value="90">Est</option>
+        <option value="135">Sud-Est</option>
+        <option value="180">Sud</option>
+        <option value="225">Sud-Ouest</option>
+        <option value="270">Ouest</option>
+        <option value="315">Nord-Ouest</option>
+      </select></label>
+    </div>
+    <button type="submit">Ajouter ce spot</button>
+    <p class="hint">Position sur la carte estimée automatiquement à partir des coordonnées (approximative, à vérifier visuellement). Le modèle de danger, les poids de calcul et le poste conseillé restent ceux, génériques, du type de terrain choisi — pas un réglage propre à ce lieu précis comme pour les 7 spots d'origine.</p>
+  </form>
+  <div id="myspotsList"></div>
+</section>
+
 <section class="logbook" id="logSec" aria-label="Carnet de pêche">
   <div class="logTop"><h2>Carnet de pêche</h2><button type="button" class="logExp" id="logExport">Exporter (CSV)</button></div>
   <p class="hint" id="logStats"></p>
@@ -309,6 +352,26 @@ const SPOTS=[
  {id:"laita",name:"Laïta",x:95.4,y:75.7,face:220,kind:"estuary",w:[.28,.30,.08,.10,.24],lat:47.7683,lon:-3.5327},
  {id:"raguenes",name:"Raguénès",x:10.1,y:67.0,face:200,kind:"exposed",w:[.14,.30,.32,.10,.14],lat:47.7841,lon:-3.8009}
 ];
+
+// ---- mes spots (persos, ajoutés par coordonnées) ----
+const KIND_TEMPLATE_W={
+  exposed:[.14,.30,.32,.10,.14],
+  semi:[.28,.26,.16,.14,.16],
+  mouth:[.28,.26,.10,.14,.22],
+  estuary:[.28,.30,.08,.10,.24],
+  inner:[.34,.26,.04,.12,.24]
+};
+// régression sur les 7 spots d'origine (lat,lon)->(x%,y%) de la carte ; approximatif hors de cette zone
+const GEO2XY={bx:[70.003929,323.141710,-2107.322480],by:[-1084.433422,-24.888846,51786.563566]};
+function latlonToXY(lat,lon){
+  const x=GEO2XY.bx[0]*lat+GEO2XY.bx[1]*lon+GEO2XY.bx[2];
+  const y=GEO2XY.by[0]*lat+GEO2XY.by[1]*lon+GEO2XY.by[2];
+  return {x:Math.max(2,Math.min(98,x)),y:Math.max(2,Math.min(98,y))};
+}
+const CUSTKEY='barsim_customspots';
+function loadCustomSpots(){try{return JSON.parse(localStorage.getItem(CUSTKEY)||'[]');}catch(e){return [];}}
+function saveCustomSpots(arr){try{localStorage.setItem(CUSTKEY,JSON.stringify(arr));}catch(e){}}
+loadCustomSpots().forEach(sp=>SPOTS.push(sp));
 
 const f=document.getElementById('f');
 // build selects & segmented controls
@@ -519,7 +582,8 @@ function poste(r){
     case 'malachappe': return (r.w>=.6?"Rochers côté large, dans l'écume. ":"")+(mid?"Bout de digue sur la passe de la ria.":"Pied de digue et rochers proches.");
     case 'doelan': return "Jetées et chenal de la ria, en travers du courant.";
     case 'laita': return T.dir==='desc'?"Limite courant et eau calme, pendant que l'estuaire se vide.":"Bordures du chenal, montant moins productif.";
-    default: return "Pointes rocheuses et plage de Raguénès. L'île ne se pêche qu'autour de la basse mer, en revenant avant que la mer remonte.";
+    case 'raguenes': return "Pointes rocheuses et plage de Raguénès. L'île ne se pêche qu'autour de la basse mer, en revenant avant que la mer remonte.";
+    default: return "Spot personnel : pas de poste précis enregistré — prospecte les zones abritées ou les postes rocheux/structurants selon ton type de terrain déclaré.";
   }
 }
 function lure(r,c){
@@ -561,7 +625,6 @@ async function loadWx(){
   const qs='&timezone=Europe%2FParis&past_days=6&forecast_days=7';
   const uW='https://api.open-meteo.com/v1/forecast?latitude=47.80&longitude=-3.70&hourly=wind_speed_10m,wind_direction_10m,cloud_cover,precipitation,pressure_msl&wind_speed_unit=kn'+qs;
   const uM='https://marine-api.open-meteo.com/v1/marine?latitude=47.76&longitude=-3.70&hourly=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_period,sea_surface_temperature,sea_level_height_msl&cell_selection=sea'+qs;
-  const uWspots='https://api.open-meteo.com/v1/forecast?latitude='+SPOTS.map(s=>s.lat).join(',')+'&longitude='+SPOTS.map(s=>s.lon).join(',')+'&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kn'+qs;
   try{
     const [a,b]=await Promise.all([getJ(uW),getJ(uM)]);
     WX=buildWx(a.hourly,b.hourly);
@@ -569,19 +632,24 @@ async function loadWx(){
     const d=new Date();
     autoTxt.textContent=`Prévisions chargées à ${d.getHours()} h ${pad(d.getMinutes())}. Marée calculée par un modèle : vérifie l'heure de pleine mer et le coefficient sur maree.info. La clarté de l'eau reste à observer sur place.`;
     render();
-    getJ(uWspots).then(arr=>{
-      WXW={};
-      SPOTS.forEach((sp,i)=>{
-        const h=Array.isArray(arr)?arr[i]?.hourly:null; if(!h) return;
-        const idx={}; h.time.forEach((tm,k)=>idx[tm]=k);
-        WXW[sp.id]={idx,wind_speed_10m:h.wind_speed_10m,wind_direction_10m:h.wind_direction_10m,wind_gusts_10m:h.wind_gusts_10m};
-      });
-      render();
-    }).catch(()=>{WXW=null;});
+    loadSpotWind();
   }catch(e){
     autoOn.checked=false; autoOn.disabled=true;
     autoTxt.textContent="Remplissage automatique impossible ici : la version publiée sur Claude ne peut pas contacter d'autres sites. Ouvre la version téléchargée du simulateur, ou saisis les chiffres ci-dessous.";
   }finally{autoBtn.disabled=false;}
+}
+function loadSpotWind(){
+  const qs='&timezone=Europe%2FParis&past_days=6&forecast_days=7';
+  const uWspots='https://api.open-meteo.com/v1/forecast?latitude='+SPOTS.map(s=>s.lat).join(',')+'&longitude='+SPOTS.map(s=>s.lon).join(',')+'&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kn'+qs;
+  return getJ(uWspots).then(arr=>{
+    WXW={};
+    SPOTS.forEach((sp,i)=>{
+      const h=Array.isArray(arr)?arr[i]?.hourly:null; if(!h) return;
+      const idx={}; h.time.forEach((tm,k)=>idx[tm]=k);
+      WXW[sp.id]={idx,wind_speed_10m:h.wind_speed_10m,wind_direction_10m:h.wind_direction_10m,wind_gusts_10m:h.wind_gusts_10m};
+    });
+    render();
+  }).catch(()=>{});
 }
 function spotWindAt(spotId,dateStr,hour){
   if(!WXW||!WXW[spotId]) return null;
@@ -670,13 +738,14 @@ const colText=s=>statusOf(s).text;
 const colFg=s=>statusOf(s).fg;
 const chart=document.getElementById('chart');
 const mkEls={};
-SPOTS.forEach(sp=>{
+function createMarker(sp){
   const b=document.createElement('button');b.type='button';b.className='mk'+(sp.id==='kerfany'?' lr':'');
   b.style.left=sp.x+'%';b.style.top=sp.y+'%';
   b.innerHTML=`<span class="sc"></span><span class="nm">${sp.name}</span>`;
   b.addEventListener('click',()=>{const el=document.getElementById('card-'+sp.id); if(el) el.scrollIntoView({behavior:'smooth',block:'start'});});
   chart.appendChild(b); mkEls[sp.id]=b;
-});
+}
+SPOTS.forEach(createMarker);
 const esc=s=>String(s).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
 function tideChart(row,hours,bi){
   if(!row) return '';
@@ -736,6 +805,39 @@ function renderLog(){
 }
 document.getElementById('logExport').addEventListener('click',exportLogCsv);
 renderLog();
+
+// ---- gestion des spots persos ----
+function renderMySpotsList(){
+  const el=document.getElementById('myspotsList');
+  const custom=loadCustomSpots();
+  el.innerHTML=custom.length?custom.map(s=>`<div class="msrow"><span>${esc(s.name)}</span><button type="button" class="msDel" data-id="${s.id}">Supprimer</button></div>`).join(''):'<p class="hint">Aucun spot personnel pour l’instant.</p>';
+  el.querySelectorAll('.msDel').forEach(btn=>btn.addEventListener('click',()=>{
+    if(!confirm('Supprimer ce spot personnel ? (les entrées déjà loguées dans le carnet sont conservées)')) return;
+    const id=btn.dataset.id;
+    saveCustomSpots(loadCustomSpots().filter(s=>s.id!==id));
+    const idx=SPOTS.findIndex(s=>s.id===id); if(idx>=0) SPOTS.splice(idx,1);
+    const mk=mkEls[id]; if(mk){mk.remove(); delete mkEls[id];}
+    renderMySpotsList(); render();
+  }));
+}
+renderMySpotsList();
+document.getElementById('addSpotForm').addEventListener('submit',e=>{
+  e.preventDefault();
+  const form=e.target;
+  const name=form.msName.value.trim();
+  const lat=parseFloat(form.msLat.value), lon=parseFloat(form.msLon.value);
+  if(!name||isNaN(lat)||isNaN(lon)) return;
+  const kind=form.msKind.value;
+  const faceVal=form.msFace.value;
+  const {x,y}=latlonToXY(lat,lon);
+  const sp={id:'custom_'+Date.now(),name,x,y,face:faceVal===''?null:+faceVal,kind,w:KIND_TEMPLATE_W[kind]||KIND_TEMPLATE_W.exposed,lat,lon,custom:true};
+  SPOTS.push(sp);
+  const custom=loadCustomSpots(); custom.push(sp); saveCustomSpots(custom);
+  createMarker(sp);
+  renderMySpotsList();
+  if(WX) loadSpotWind(); else render();
+  form.reset();
+});
 
 function render(){
   const c0=read();
