@@ -33,9 +33,9 @@ a{color:var(--magenta)}
 :focus-visible{outline:2px solid var(--magenta);outline-offset:2px}
 .wrap{max-width:1240px;margin:0 auto;padding:16px 16px 40px;
   display:grid;gap:20px;grid-template-columns:minmax(0,1fr);
-  grid-template-areas:"head" "map" "form" "day" "week" "spots" "foot"}
+  grid-template-areas:"head" "map" "form" "day" "week" "spots" "log" "foot"}
 @media (min-width:980px){
-  .wrap{grid-template-columns:330px minmax(0,1fr);grid-template-areas:"head head" "form map" "form day" "form week" "form spots" "foot foot"}
+  .wrap{grid-template-columns:330px minmax(0,1fr);grid-template-areas:"head head" "form map" "form day" "form week" "form spots" "form log" "foot foot"}
   .form{position:sticky;top:12px;align-self:start;max-height:calc(100vh - 24px);overflow:auto}
 }
 header{grid-area:head}
@@ -141,6 +141,24 @@ table.hm{border-collapse:separate;border-spacing:2px;font-size:12px;min-width:72
 .bars span b{position:absolute;inset:0 auto 0 0;background:var(--ink2)}
 .barl{display:flex;gap:3px;font-size:10.5px;color:var(--ink2);margin-top:2px}
 .barl span{flex:1}
+.logmini{margin-top:10px;border-top:1px dashed var(--rule);padding-top:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.logmini input[type=number]{width:64px}
+.logmini input[type=text]{flex:1;min-width:120px}
+.logmini input{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:6px 8px;min-height:36px}
+.logmini label{font-size:12px;color:var(--ink2);display:flex;flex-direction:column;gap:2px}
+.logBtn{font:inherit;font-size:12.5px;font-weight:700;border:0;border-radius:20px;padding:8px 14px;min-height:36px;background:var(--ink);color:var(--paper);cursor:pointer}
+.logBtn.ok{background:hsl(125 50% 36%)}
+
+/* logbook */
+.logbook{grid-area:log}
+.logTop{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.logExp{font:inherit;font-size:12.5px;font-weight:600;border:1px solid var(--rule);border-radius:20px;padding:6px 12px;background:var(--paper);color:var(--ink);cursor:pointer}
+table.lg{border-collapse:collapse;font-size:12.5px;width:100%;background:var(--card)}
+table.lg th,table.lg td{border-bottom:1px solid var(--rule);padding:6px 8px;text-align:left;vertical-align:top}
+table.lg th{color:var(--ink2);font-weight:600;font-stretch:85%}
+table.lg .lgDel{border:0;background:none;color:var(--danger);cursor:pointer;font-size:14px;padding:2px 6px}
+table.lg .lgSc{font-weight:700}
+table.lg details{font-size:11.5px;color:var(--ink2)}
 footer{grid-area:foot;font-size:12px;color:var(--ink2);border-top:1px solid var(--rule);padding-top:10px}
 @media (prefers-reduced-motion:no-preference){.mk{transition:background .25s}}
 </style>
@@ -208,7 +226,7 @@ footer{grid-area:foot;font-size:12px;color:var(--ink2);border-top:1px solid var(
     <div class="seg-l">Clarté de l'eau</div>
     <div class="seg" data-name="clar"></div>
     <p class="hint" id="clarTxt"></p>
-    <div class="seg-l">Pression</div>
+    <div class="seg-l">Pression (tendance sur 24 h — plus la baisse est marquée, mieux c'est)</div>
     <div class="seg" data-name="press"></div>
     <div class="row" style="margin-top:8px">
       <label class="f">Eau (°C)<input type="number" name="sst" min="5" max="25" step="0.5"></label>
@@ -245,6 +263,13 @@ footer{grid-area:foot;font-size:12px;color:var(--ink2);border-top:1px solid var(
 </section>
 
 <section class="spots" id="spots" aria-label="Détail par spot"></section>
+
+<section class="logbook" id="logSec" aria-label="Carnet de pêche">
+  <div class="logTop"><h2>Carnet de pêche</h2><button type="button" class="logExp" id="logExport">Exporter (CSV)</button></div>
+  <p class="hint" id="logStats"></p>
+  <div class="tblw"><table class="lg" id="logTbl"></table></div>
+  <p class="legend2">Enregistré depuis chaque fiche spot, avec la note prédite au moment de la sortie. Les données restent uniquement sur cet appareil (stockage local du navigateur) — exporte régulièrement en CSV pour ne rien perdre si tu changes de téléphone ou vides Safari.</p>
+</section>
 
 <footer>
   Outil indicatif : les notes viennent de règles de pêche (courant, lumière, écume, vent, clarté, saison), pas d'une garantie de prise. En estuaire, le courant réel peut être décalé par rapport à l'annuaire. Sur place, la sécurité prime toujours sur la note. Réglementation (zone sud 48°N) : bar et lieu jaune, 2 par jour, 42 cm minimum, déclaration RecFishing sous 24 h.
@@ -383,6 +408,11 @@ function clarity(c,w,kind){
   return 'claire';
 }
 const CLARNAME={claire:"claire",teintee:"teintée",trouble:"trouble",chargee:"très chargée"};
+const PRESS_BUCKET_HPA={baisse:-6,stable:0,hausse:6};
+function pressFactor(c){
+  const dp=typeof c._pressDp24==='number'?c._pressDp24:(PRESS_BUCKET_HPA[c.press]||0);
+  return 1+Math.max(-15,Math.min(15,-dp))*0.006;
+}
 function season(dateStr){const m=+dateStr.split('-')[1];
   return m>=9&&m<=11?1:(m===5||m===6)?.9:(m===7||m===8)?.85:m===4?.8:m===12?.75:(m===1||m===2)?.45:.55;}
 function tempF(s){return s<9?.6:s<11?.8:s<13?.92:s<=20?1:.93;}
@@ -423,7 +453,7 @@ function evalSpot(sp,c,t,S){
   E=Math.max(0,Math.min(1,E));
   const F=[C,L,M,V,E];
   let raw=F.reduce((a,x,i)=>a+x*sp.w[i],0);
-  const press={baisse:1.04,stable:1,hausse:.97}[c.press];
+  const press=pressFactor(c);
   let score=Math.round(Math.max(0,Math.min(100,100*Math.pow(raw,2.3)*season(c.date)*tempF(c.sst)*press)));
   // safety
   const warns=[]; let danger=false;
@@ -574,7 +604,10 @@ function condAt(c,hour){
     }
     o._riverRainMM=riverSum;
     o.riverrain=riverSum<3?'aucune':riverSum<9?'moderee':'forte';
-    if(i>=3&&W.pressure_msl[i]!=null&&W.pressure_msl[i-3]!=null){const dp=W.pressure_msl[i]-W.pressure_msl[i-3];o.press=dp<-1.5?'baisse':dp>1.5?'hausse':'stable';}
+    if(i>=24&&W.pressure_msl[i]!=null&&W.pressure_msl[i-24]!=null){
+      const dp24=W.pressure_msl[i]-W.pressure_msl[i-24];
+      o._pressDp24=dp24; o.press=dp24<-3?'baisse':dp24>3?'hausse':'stable';
+    }
   }
   if(j!=null){
     const wh=M.wave_height[j], sh=M.swell_wave_height[j];
@@ -604,6 +637,50 @@ const esc=s=>String(s).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 
 // activité de surface observée sur place (prime sur le modèle, jamais sur la sécurité)
 const OBS={};
+
+// ---- carnet de pêche (localStorage, propre à cet appareil/navigateur) ----
+const LOGKEY='barsim_log';
+function loadLog(){try{return JSON.parse(localStorage.getItem(LOGKEY)||'[]');}catch(e){return [];}}
+function saveLog(arr){try{localStorage.setItem(LOGKEY,JSON.stringify(arr));}catch(e){}}
+function addLogEntry(entry){const arr=loadLog();arr.push(entry);saveLog(arr);renderLog();}
+function deleteLogEntry(id){saveLog(loadLog().filter(e=>e.id!==id));renderLog();}
+function csvEsc(v){const s=String(v??'');return /[",\n;]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
+function exportLogCsv(){
+  const arr=loadLog().sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  const cols=['date','time','spotName','score','danger','count','note','coef','houle','periode','vent','ventDir','ciel','pluie','pluieTerre','pression','eauTemp','clarte','lumiere','maree'];
+  const head=cols.join(';');
+  const rows=arr.map(e=>cols.map(k=>csvEsc(k==='cond'?'':(e[k]!=null?e[k]:(e.cond&&e.cond[k]!=null?e.cond[k]:'')))).join(';'));
+  const csv='﻿'+[head,...rows].join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='carnet_peche_bar.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function renderLog(){
+  const tbl=document.getElementById('logTbl'); if(!tbl) return;
+  const arr=loadLog().sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
+  const statsEl=document.getElementById('logStats');
+  const withFish=arr.filter(e=>e.count>0), without=arr.filter(e=>e.count===0);
+  if(arr.length>=3){
+    const avg=xs=>xs.length?Math.round(xs.reduce((a,e)=>a+e.score,0)/xs.length):null;
+    const a1=avg(withFish), a0=avg(without);
+    statsEl.textContent=`${arr.length} sortie(s) enregistrée(s). Note moyenne prédite quand il y a eu du poisson : ${a1??'—'} ; quand bredouille : ${a0??'—'}. Purement indicatif tant que l'échantillon est petit.`;
+  } else statsEl.textContent=`${arr.length} sortie(s) enregistrée(s). À partir de 3, une moyenne indicative s'affiche ici.`;
+  if(!arr.length){tbl.innerHTML='';return;}
+  tbl.innerHTML='<thead><tr><th>Date</th><th>Heure</th><th>Spot</th><th>Note</th><th>Bars</th><th>Remarques</th><th></th></tr></thead><tbody>'+
+    arr.map(e=>{
+      const cond=e.cond||{};
+      const detail=Object.entries(cond).map(([k,v])=>`${k}: ${v}`).join(' · ');
+      return `<tr><td>${esc(e.date)}</td><td>${esc(e.time)}</td><td>${esc(e.spotName)}</td>`+
+        `<td class="lgSc">${e.danger?'Déconseillé':e.score}</td><td>${e.count}</td>`+
+        `<td>${esc(e.note||'')}${detail?`<br><details><summary>Conditions</summary>${esc(detail)}</details>`:''}</td>`+
+        `<td><button type="button" class="lgDel" data-id="${e.id}" title="Supprimer">✕</button></td></tr>`;
+    }).join('')+'</tbody>';
+  tbl.querySelectorAll('.lgDel').forEach(btn=>btn.addEventListener('click',()=>{
+    if(confirm('Supprimer cette entrée du carnet ?')) deleteLogEntry(btn.dataset.id);
+  }));
+}
+document.getElementById('logExport').addEventListener('click',exportLogCsv);
+renderLog();
 
 function render(){
   const c0=read();
@@ -669,9 +746,30 @@ function render(){
       <div class="bars">${r.F.map(x=>`<span><b style="width:${Math.round(x*100)}%"></b></span>`).join('')}</div>
       <div class="barl">${fl.map(x=>`<span>${x}</span>`).join('')}</div>
       ${r.danger?'':`<button type="button" class="obsBtn${r.observed?' on':''}" data-obs="${r.sp.id}">${r.observed?'✓ Chasse observée ici — désactiver':'Chasse / oiseaux repérés ici'}</button>`}
+      <div class="logmini">
+        <label>Bars pêchés<input type="number" min="0" step="1" class="logCount" data-spot="${r.sp.id}" placeholder="0"></label>
+        <input type="text" class="logNote" data-spot="${r.sp.id}" placeholder="Taille / remarques (optionnel)">
+        <button type="button" class="logBtn" data-spot="${r.sp.id}">Enregistrer dans le carnet</button>
+      </div>
     </article>`;}).join('');
   document.querySelectorAll('.obsBtn').forEach(btn=>btn.addEventListener('click',()=>{
     const id=btn.dataset.obs; OBS[id]=!OBS[id]; render();
+  }));
+  document.querySelectorAll('.logBtn').forEach(btn=>btn.addEventListener('click',()=>{
+    const id=btn.dataset.spot;
+    const r=res.find(x=>x.sp.id===id); if(!r) return;
+    const countEl=document.querySelector(`.logCount[data-spot="${id}"]`);
+    const noteEl=document.querySelector(`.logNote[data-spot="${id}"]`);
+    const count=Math.max(0,parseInt(countEl.value)||0);
+    addLogEntry({
+      id:'log_'+Date.now()+'_'+id,
+      date:c0.date, time:c0.time, spotId:id, spotName:r.sp.name,
+      score:r.score, danger:r.danger, count, note:(noteEl.value||'').trim(),
+      cond:{coef:c.coef,houle:r.w.toFixed(1),periode:c.t,vent:c.v,ventDir:c.vd,ciel:c.sky,pluie:c.rain,pluieTerre:c.riverrain,pression:c.press,eauTemp:c.sst,clarte:CLARNAME[r.cl]||r.cl,lumiere:LIGHTNAME[r.light],maree:tideLabel(r.T),auto:autoOn.checked}
+    });
+    countEl.value=''; noteEl.value='';
+    btn.textContent='✓ Enregistré'; btn.classList.add('ok');
+    setTimeout(()=>{btn.textContent='Enregistrer dans le carnet';btn.classList.remove('ok');},1500);
   }));
   renderWeek(c0);
 }
