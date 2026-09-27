@@ -122,6 +122,20 @@ table.hm{border-collapse:separate;border-spacing:2px;font-size:12px;min-width:72
 .sh h3{margin:0;font-stretch:80%;font-weight:800;font-size:21px}
 .score{font-stretch:75%;font-weight:800;font-size:30px;line-height:1}
 .score small{font-size:13px;font-weight:600;color:var(--ink2);font-stretch:90%;margin-left:4px}
+.creneau{display:flex;align-items:baseline;gap:8px;margin-top:8px;flex-wrap:wrap}
+.creneau .crlbl{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink2);font-weight:700}
+.creneau .crtime{font-weight:800;font-size:17px;font-stretch:82%}
+.creneau .crsc{font-size:12px;color:var(--ink2)}
+.creneau.none{color:var(--danger);font-weight:700;font-size:13.5px}
+.tidechart{margin-top:8px}
+.tc-row{display:flex;align-items:flex-end;gap:2px;height:32px}
+.tc-h{flex:1;background:color-mix(in srgb,var(--ink2) 45%,transparent);border-radius:2px 2px 0 0;min-width:3px}
+.tc-h.win{background:var(--magenta)}
+.tc-strip{height:6px;margin-top:2px}
+.tc-s{flex:1;border-radius:2px;min-width:3px}
+.tc-s.win{outline:1px solid var(--ink);outline-offset:0}
+.tc-labels{display:flex;gap:2px;font-size:9px;color:var(--ink2);margin-top:2px}
+.tc-labels span{flex:1;text-align:center}
 .warn{background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger);border-radius:4px;padding:6px 9px;margin:8px 0 0;font-weight:600;font-size:13.5px}
 .obsnote{background:color-mix(in srgb,var(--magenta) 14%,transparent);color:var(--magenta);border-radius:4px;padding:6px 9px;margin:8px 0 0;font-weight:600;font-size:13.5px}
 .obsBtn{font:inherit;font-size:12.5px;font-weight:600;border:1px solid var(--rule);border-radius:20px;padding:6px 12px;margin-top:10px;background:var(--paper);color:var(--ink2);cursor:pointer}
@@ -657,6 +671,20 @@ SPOTS.forEach(sp=>{
   chart.appendChild(b); mkEls[sp.id]=b;
 });
 const esc=s=>String(s).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+function tideChart(row,hours,bi){
+  if(!row) return '';
+  const bars=row.map((r,i)=>{
+    const hpx=Math.round((1+Math.cos(2*Math.PI*r.T.x/TP))/2*100);
+    const inWin=bi>=0&&(i===bi||i===bi+1);
+    return `<div class="tc-h${inWin?' win':''}" style="height:${Math.max(8,hpx)}%"></div>`;
+  }).join('');
+  const strip=row.map((r,i)=>{
+    const inWin=bi>=0&&(i===bi||i===bi+1);
+    return `<div class="tc-s${inWin?' win':''}" style="background:${r.danger?'var(--danger)':col(r.score)}"></div>`;
+  }).join('');
+  const labels=hours.map(h=>`<span>${h%3===0?h+'h':''}</span>`).join('');
+  return `<div class="tidechart"><div class="tc-row">${bars}</div><div class="tc-row tc-strip">${strip}</div><div class="tc-labels">${labels}</div></div>`;
+}
 
 // activité de surface observée sur place (prime sur le modèle, jamais sur la sécurité)
 const OBS={};
@@ -739,9 +767,10 @@ function render(){
   let html='<thead><tr><th class="sp">Heure</th>'+hours.map(h=>`<th>${h}h</th>`).join('')+'</tr>';
   html+='<tr class="tide"><th class="sp">Marée</th>'+hours.map(h=>{const T=tideAt(h+.5,hm2d(condAt(c0,h+.5).pm));return `<th title="${tideLabel(T)}">${T.slackPM?'PM':T.slackBM?'BM':(T.dir==='mont'?'↑':'↓')+T.hour}</th>`;}).join('')+'</tr>';
   html+='<tr class="light"><th class="sp">Lumière</th>'+hours.map(h=>{const l=lightAt(h+.5,S);return `<th title="${LIGHTNAME[l]}">${{nuit:'☾',aube:'◐',crepuscule:'◑',jour:'○',midi:'☀'}[l]}</th>`;}).join('')+'</tr></thead><tbody>';
-  const best=[];
+  const best=[]; const rowsBySpot={};
   SPOTS.forEach(sp=>{
     const row=hours.map(h=>evalSpot(sp,condAt(c0,h+.5),h+.5,S));
+    rowsBySpot[sp.id]=row;
     html+=`<tr><th class="sp">${sp.name}</th>`+row.map((r,i)=>{
       const isNow=Math.floor(t)===hours[i];
       return r.danger?`<td class="dz${isNow?' now':''}" data-h="${hours[i]}" title="${sp.name} ${hours[i]} h : déconseillé">✕</td>`
@@ -756,15 +785,19 @@ function render(){
   const sorted=[...res].sort((a,b)=>(a.danger-b.danger)||(b.score-a.score));
   document.getElementById('spots').innerHTML='<h2>Détail par spot à '+fmtH(t)+'</h2>'+sorted.map(r=>{
     const b=best.find(x=>x.sp.id===r.sp.id);
-    const bw=b.bi>=0?`Meilleur créneau du jour : ${hours[b.bi]} h – ${hours[b.bi]+2} h (${Math.round(b.bv)}).`:"Aucun créneau sûr aujourd'hui.";
+    const creneau=b.bi>=0
+      ?`<div class="creneau"><span class="crlbl">Créneau optimal</span><span class="crtime">${hours[b.bi]} h – ${hours[b.bi]+2} h</span><span class="crsc">${Math.round(b.bv)}/100</span></div>`
+      :`<div class="creneau none">Aucun créneau sûr aujourd'hui</div>`;
     const L=lure(r,c), rs=reasons(r);
     const fl=["Courant","Lumière","Mer","Vent","Eau"];
     return `<article class="spot${r.danger?' dz':''}" id="card-${r.sp.id}" style="--c:${col(r.score)}">
       <div class="sh"><h3>${esc(r.sp.name)}</h3><div class="score" style="color:${r.danger?'var(--danger)':col(r.score)}">${r.danger?'Déconseillé':r.score}<small>${r.danger?'':'/ 100'}</small></div></div>
+      ${creneau}
+      ${tideChart(rowsBySpot[r.sp.id],hours,b.bi)}
       ${r.warns.map(w=>`<p class="warn">${esc(w)}</p>`).join('')}
       ${r.observed?`<p class="obsnote">Activité de surface repérée ici : note ajustée en priorité sur le modèle.${r.warns.length?' La sécurité reste prioritaire malgré tout.':''}</p>`:''}
       <ul class="why">${rs.map(o=>`<li class="${o.pos?'p':'n'}">${esc(o.t)}</li>`).join('')}</ul>
-      <p class="poste"><strong>Poste :</strong> ${esc(poste(r))} ${esc(bw)}</p>
+      <p class="poste"><strong>Poste :</strong> ${esc(poste(r))}</p>
       <dl class="lure"><dt>Leurre</dt><dd>${esc(L.type)}</dd><dt>Animation</dt><dd>${esc(L.anim)}</dd><dt>Couleur</dt><dd>${esc(L.col)}</dd><dt>Bas de ligne</dt><dd>${esc(L.bdl)}</dd></dl>
       <div class="bars">${r.F.map(x=>`<span><b style="width:${Math.round(x*100)}%"></b></span>`).join('')}</div>
       <div class="barl">${fl.map(x=>`<span>${x}</span>`).join('')}</div>
