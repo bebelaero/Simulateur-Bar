@@ -302,6 +302,7 @@ footer{grid-area:foot;font-size:12px;color:var(--ink2);border-top:1px solid var(
         <option value="mouth">Embouchure de rivière — comme Kerfany, Port Manec'h</option>
         <option value="estuary">Estuaire large — comme la Laïta</option>
         <option value="inner">Crique / chenal abrité, houle quasi nulle — comme l'Aven intérieur</option>
+        <option value="plage">Plage sableuse — trous, bancs de sable, cassures</option>
       </select></label>
       <label class="f">Face à la mer<select name="msFace">
         <option value="">Je ne sais pas</option>
@@ -362,7 +363,8 @@ const KIND_TEMPLATE_W={
   semi:[.28,.26,.16,.14,.16],
   mouth:[.28,.26,.10,.14,.22],
   estuary:[.28,.30,.08,.10,.24],
-  inner:[.34,.26,.04,.12,.24]
+  inner:[.34,.26,.04,.12,.24],
+  plage:[.26,.26,.16,.16,.16]
 };
 // régression sur les 7 spots d'origine (lat,lon)->(x%,y%) de la carte ; approximatif hors de cette zone
 const GEO2XY={bx:[70.003929,323.141710,-2107.322480],by:[-1084.433422,-24.888846,51786.563566]};
@@ -505,6 +507,10 @@ function evalSpot(sp,c,t,S){
   let C=PH[T.hour-1]*coefF(c.coef,c.lvl), anse=false;
   if(sp.id==='kerfany'&&T.nearPM){const a=low?.85:.55; if(a>C){C=a;anse=true;}}
   if(sp.id==='laita'){C=Math.min(1,C*(T.dir==='desc'&&T.hour>=2&&T.hour<=5?1.12:.9));}
+  if(sp.kind==='plage'){C=Math.min(1,C*(T.dir==='mont'?1.1:.92));} // montante + gros coef = oxygénation, classique en plage sableuse
+  // début de jusant / fin de flot : proies chassées hors des caches sur fond rocheux (2 sources vidéo + sorties réelles à Kerfany sans résultat en milieu de marée)
+  const favWindow=(sp.kind==='exposed'||sp.kind==='semi'||sp.kind==='mouth')&&!anse&&((T.dir==='desc'&&T.hour<=2)||(T.dir==='mont'&&T.hour>=5));
+  if(favWindow) C=Math.min(1,C*1.15);
   // light
   let L={aube:1,crepuscule:1,nuit:.8,jour:.6,midi:.42}[light];
   if(light==='jour'||light==='midi'){L+= {soleil:0,voile:.1,couvert:.2,pluie:.22}[c.sky]; if(cl==='claire'&&c.sky==='soleil')L*=.85;}
@@ -516,6 +522,7 @@ function evalSpot(sp,c,t,S){
   else if(sp.kind==='semi'){M=w<.3?.6:w<=1.8?1:w<=2.5?.65:.3; if(c.gale&&w>=.6&&w<=2.5)M=Math.min(1,M+.1);}
   else if(sp.kind==='mouth'){M=w<1.5?(w>=.4&&w<=1.2?1:.95):w<=2.5?.75:.45;}
   else if(sp.kind==='estuary'){M=w<1.2?1:w<=2?.8:.5;}
+  else if(sp.kind==='plage'){M=w<.3?.4:w<=2.5?1:w<=3.5?.7:.4;}
   else M=1;
   // wind (vent local au spot si dispo, sinon repli sur le point générique)
   const spW=spotWindAt(sp.id,c.date,t);
@@ -551,11 +558,13 @@ function evalSpot(sp,c,t,S){
   if(sp.id==='doelan'&&w>lim({deb:1.8,inter:2.3,conf:2.8})){danger=true;warns.push("Houle trop forte sur les jetées de Doëlan pour ton niveau.");}
   if(sp.kind==='mouth'){ if(w>3.5){danger=true;warns.push("Mer très forte : même l'embouchure devient dangereuse.");}
     else if(w>2.5) warns.push("Mer forte : rester sur les postes hauts, loin des rochers bas."); }
+  if(sp.kind==='plage'){ if(w>lim({deb:2.5,inter:3.2,conf:4})){danger=true;warns.push(`Mer trop forte pour ton niveau sur une plage (${w.toFixed(1)} m) : shore-break et baïnes actives.`);}
+    else if(w>2) warns.push("Mer formée : surveille les baïnes et courants d'arrachement."); }
   if(sp.id==='laita'){ if(c.lvl!=='conf'){danger=true;warns.push("Niveau confirmé requis : courant violent et bancs de sable.");}
     else if(w>2){danger=true;warns.push("Houle trop forte à l'embouchure de la Laïta.");} }
   if(!danger&&light==='nuit'&&c.lvl==='deb'&&sp.kind!=='inner') warns.push("De nuit : frontale, jamais seul, rester sur la plage ou la cale.");
   if(!danger&&c.coef>=100&&c.lvl==='deb') warns.push("Gros coefficient : courant violent et mer qui monte vite, surveille ta retraite.");
-  return {sp,score,danger,warns,F,T,light,low,w,cl,anse,v:vRaw,vd:vdRaw};
+  return {sp,score,danger,warns,F,T,light,low,w,cl,anse,favWindow,v:vRaw,vd:vdRaw};
 }
 
 // ---- texts ----
@@ -563,8 +572,10 @@ function reasons(r){
   const [C,L,M,V,E]=r.F, sp=r.sp, out=[];
   const add=(val,w,p,n,thrP,thrN)=>{ if(val>=thrP&&p) out.push({t:p,s:w*(val-.6),pos:true}); else if(val<=thrN&&n) out.push({t:n,s:w*(.6-val),pos:false}); };
   add(C,sp.w[0], r.anse?"Pleine mer : bon moment pour la plage et les bordures":"Courant au plus fort", r.T.slackPM||r.T.slackBM?"Étale : presque pas de courant":C<=.45?"Courant faible":"Courant moyen, pas encore au maximum", .85,.7);
+  if(r.favWindow) out.push({t:"Début de jusant / fin de flot : les proies sont chassées hors des caches",s:sp.w[0]*0.5,pos:true});
   add(L,sp.w[1], r.light==='nuit'?"Nuit : les gros bars se rapprochent":"Lumière faible : bar en confiance", L<=.55?"Plein jour : bar méfiant":"Journée : bar plus méfiant qu'à l'aube", .9,.75);
   if(sp.kind==='exposed'||sp.kind==='semi') add(M,sp.w[2],"Houle idéale pour l'écume", r.w<.6?"Mer trop plate pour l'écume":"Mer trop forte", .9,.5);
+  else if(sp.kind==='plage') add(M,sp.w[2],"Mer formée, bon brassage sur le sable", r.w<.3?"Mer trop plate, peu de brassage":"Mer trop forte", .9,.5);
   else add(M,sp.w[2],null,"Mer agitée à l'embouchure",1,.6);
   add(V,sp.w[3], r.v<=18?"Vent favorable, qui ride l'eau":"Vent dans le dos, pêchable", r.v<4?"Pas de vent : eau d'huile":"Vent trop fort", .95,.55);
   add(E,sp.w[4], r.cl==='teintee'?"Eau teintée, idéale":"Eau favorable", r.cl==='claire'?"Eau claire en journée : pêcher fin et loin":r.cl==='chargee'?"Eau trop chargée":"Eau trouble : leurres visibles", .95,.7);
@@ -586,7 +597,7 @@ function poste(r){
     case 'doelan': return "Jetées et chenal de la ria, en travers du courant.";
     case 'laita': return T.dir==='desc'?"Limite courant et eau calme, pendant que l'estuaire se vide.":"Bordures du chenal, montant moins productif.";
     case 'raguenes': return "Pointes rocheuses et plage de Raguénès. L'île ne se pêche qu'autour de la basse mer, en revenant avant que la mer remonte.";
-    default: return "Spot personnel : pas de poste précis enregistré — prospecte les zones abritées ou les postes rocheux/structurants selon ton type de terrain déclaré.";
+    default: return "Spot personnel : pas de poste précis enregistré. Repère-le à marée basse (relief, cassures, algues, trous), privilégie les zones où l'eau bouge et évite le plat sans courant. Cherche les changements de couleur d'eau, les remous, les oiseaux qui plongent.";
   }
 }
 function lure(r,c){
