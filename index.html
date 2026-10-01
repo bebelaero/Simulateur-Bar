@@ -354,7 +354,9 @@ const SPOTS=[
  {id:"malachappe",name:"Malachappe",x:51.2,y:58.0,face:225,kind:"exposed",w:[.14,.30,.32,.10,.14],lat:47.7835,lon:-3.6706},
  {id:"doelan",name:"Doëlan",x:71.4,y:68.6,face:190,kind:"semi",w:[.28,.26,.16,.14,.16],lat:47.7729,lon:-3.6091},
  {id:"laita",name:"Laïta",x:95.4,y:75.7,face:220,kind:"estuary",w:[.28,.30,.08,.10,.24],lat:47.7683,lon:-3.5327},
- {id:"raguenes",name:"Raguénès",x:10.1,y:67.0,face:200,kind:"exposed",w:[.14,.30,.32,.10,.14],lat:47.7841,lon:-3.8009}
+ {id:"raguenes",name:"Raguénès",x:10.1,y:67.0,face:200,kind:"exposed",w:[.14,.30,.32,.10,.14],lat:47.7841,lon:-3.8009},
+ {id:"trenez",name:"Trénez / Île Percée",x:41.3,y:55.1,face:200,kind:"exposed",w:[.14,.30,.32,.10,.14],lat:47.7887,lon:-3.7036},
+ {id:"pouldu",name:"Le Pouldu — Grands Sables",x:90.2,y:76.0,face:180,kind:"plage",w:[.26,.26,.16,.16,.16],lat:47.7658,lon:-3.5472}
 ];
 
 // ---- mes spots (persos, ajoutés par coordonnées) ----
@@ -549,6 +551,10 @@ function evalSpot(sp,c,t,S){
     if(w>lim({deb:1.2,inter:1.8,conf:2.5})){danger=true;warns.push(`Houle trop forte pour ton niveau sur les rochers de Raguénès (${w.toFixed(1)} m à la côte).`);}
     if(T.dir==='mont'&&!T.slackPM&&!T.slackBM) warns.push("Mer qui remonte : le passage vers l'île se couvre. Ne pas rester sur l'île, pêcher depuis la côte.");
   }
+  if(sp.id==='trenez'){
+    if(w>lim({deb:1.2,inter:1.8,conf:2.5})){danger=true;warns.push(`Houle trop forte pour ton niveau sur les rochers de Trénez (${w.toFixed(1)} m à la côte).`);}
+    if(T.dir==='mont'&&!T.slackPM&&!T.slackBM) warns.push("Mer qui remonte : l'accès à l'Île Percée se couvre. Ne pas y rester, pêcher depuis la plage ou les rochers latéraux.");
+  }
   if(vDanger>30&&sp.kind!=='inner'){danger=true;warns.push(vRaw<=30?`Rafales à ${spW.gust} nœuds : au-delà d'un vent moyen de 30 nœuds en effet, côte trop dangereuse.`:"Vent de plus de 30 nœuds : côte trop dangereuse.");}
   if(sp.kind==='inner'&&vDanger>40){danger=true;warns.push("Vent de plus de 40 nœuds : ne pas sortir.");}
   if(sp.id==='malachappe'){
@@ -597,6 +603,8 @@ function poste(r){
     case 'doelan': return "Jetées et chenal de la ria, en travers du courant.";
     case 'laita': return T.dir==='desc'?"Limite courant et eau calme, pendant que l'estuaire se vide.":"Bordures du chenal, montant moins productif.";
     case 'raguenes': return "Pointes rocheuses et plage de Raguénès. L'île ne se pêche qu'autour de la basse mer, en revenant avant que la mer remonte.";
+    case 'trenez': return "Île Percée et rochers latéraux de la plage de Trénez. L'île ne se pêche qu'autour de la basse mer, en revenant avant que la mer remonte.";
+    case 'pouldu': return "Pointes et extrémités de la plage des Grands Sables ; prospecter aussi vers Bellangenêt et Kérou selon le vent.";
     default: return "Spot personnel : pas de poste précis enregistré. Repère-le à marée basse (relief, cassures, algues, trous), privilégie les zones où l'eau bouge et évite le plat sans courant. Cherche les changements de couleur d'eau, les remous, les oiseaux qui plongent.";
   }
 }
