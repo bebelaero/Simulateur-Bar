@@ -594,16 +594,16 @@ function poste(r){
   switch(r.sp.id){
     case 'kerfany':
       if(r.anse) return "Plage de Kerfany et ses bordures rocheuses.";
-      if(T.dir==='mont'&&mid) return "Pointe de Penquernéo, dans le courant principal qui remonte vers le Bélon.";
-      if(T.dir==='desc'&&mid) return "Pointe de Penquernéo, à la limite entre le courant qui sort du Bélon et l'eau calme.";
-      return "Courant faible : prospecter les bordures de la pointe de Penquernéo, ou attendre que le courant reparte.";
-    case 'manech': return mid?"Beg-ar-Véchen et la cale, entre le Doigt de Dieu et Rocher Madame, en travers du courant.":"Bordures de Beg-ar-Véchen ; le courant reprend dans l'heure qui suit.";
+      if(T.dir==='mont'&&mid) return "Pointe de Penquernéo, dans le courant principal qui remonte vers le Bélon : lance le long de la roche, la cassure vers le chenal est à quelques mètres du bord, pas besoin d'aller chercher loin.";
+      if(T.dir==='desc'&&mid) return "Pointe de Penquernéo, à la limite entre le courant qui sort du Bélon et l'eau calme : la cassure de profondeur colle à la roche.";
+      return "Courant faible : prospecter les bordures de la pointe de Penquernéo au ras de la roche, ou attendre que le courant reparte.";
+    case 'manech': return mid?"Beg-ar-Véchen et la cale, entre le Doigt de Dieu et Rocher Madame, en travers du courant : pêche dans l'alignement des deux rochers, le relief sous-marin y est marqué.":"Bordures de Beg-ar-Véchen ; le courant reprend dans l'heure qui suit.";
     case 'aven': return "Bordures du chenal et zones abritées, côté Kerdruc et Rosbras.";
     case 'malachappe': return (r.w>=.6?"Rochers côté large, dans l'écume. ":"")+(mid?"Bout de digue sur la passe de la ria de Brigneau, face à Beg ar Lann sur l'autre rive.":"Pied de digue et rochers proches, rive ouest de l'entrée de Brigneau.");
-    case 'doelan': return "Entrée de la ria entre Beg ar Lann (côté ouest) et Toull Du (côté est), jetées et chenal en travers du courant.";
+    case 'doelan': return "Entrée de la ria entre Beg ar Lann (côté ouest) et Toull Du (côté est) : une obstruction marquée resserre le courant à l'entrée, pêche juste en aval de ce point selon le sens de la marée.";
     case 'laita': return T.dir==='desc'?"Limite courant et eau calme, pendant que l'estuaire se vide.":"Bordures du chenal, montant moins productif.";
     case 'raguenes': return "Pointes rocheuses et plage de Raguénès. L'île ne se pêche qu'autour de la basse mer, en revenant avant que la mer remonte.";
-    case 'trenez': return "Île Percée et rochers latéraux de la plage de Trénez. L'île ne se pêche qu'autour de la basse mer, en revenant avant que la mer remonte.";
+    case 'trenez': return "Bord immédiat de l'Île Percée, côté courant : les fonds passent de 2-3 m à 40-60 m en quelques mètres, poste d'affût au pied de ce mur sous-marin plutôt que depuis la plage. L'île ne se pêche qu'autour de la basse mer, en revenant avant que la mer remonte.";
     case 'pouldu': return "Pointes et extrémités de la plage des Grands Sables ; prospecter aussi vers Bellangenêt et Kérou selon le vent.";
     default: return "Spot personnel : pas de poste précis enregistré. Repère-le à marée basse (relief, cassures, algues, trous), privilégie les zones où l'eau bouge et évite le plat sans courant. Cherche les changements de couleur d'eau, les remous, les oiseaux qui plongent.";
   }
