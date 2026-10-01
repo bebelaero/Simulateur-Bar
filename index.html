@@ -594,13 +594,13 @@ function poste(r){
   switch(r.sp.id){
     case 'kerfany':
       if(r.anse) return "Plage de Kerfany et ses bordures rocheuses.";
-      if(T.dir==='mont'&&mid) return "Rochers côté embouchure, dans le courant principal.";
-      if(T.dir==='desc'&&mid) return "Sortie du Bélon, à la limite entre le courant et l'eau calme.";
-      return "Courant faible : prospecter les bordures, ou attendre que le courant reparte.";
-    case 'manech': return mid?"Rochers et cale à l'entrée de l'estuaire, en travers du courant.":"Bordures de l'embouchure ; le courant reprend dans l'heure qui suit.";
+      if(T.dir==='mont'&&mid) return "Pointe de Penquernéo, dans le courant principal qui remonte vers le Bélon.";
+      if(T.dir==='desc'&&mid) return "Pointe de Penquernéo, à la limite entre le courant qui sort du Bélon et l'eau calme.";
+      return "Courant faible : prospecter les bordures de la pointe de Penquernéo, ou attendre que le courant reparte.";
+    case 'manech': return mid?"Beg-ar-Véchen et la cale, entre le Doigt de Dieu et Rocher Madame, en travers du courant.":"Bordures de Beg-ar-Véchen ; le courant reprend dans l'heure qui suit.";
     case 'aven': return "Bordures du chenal et zones abritées, côté Kerdruc et Rosbras.";
-    case 'malachappe': return (r.w>=.6?"Rochers côté large, dans l'écume. ":"")+(mid?"Bout de digue sur la passe de la ria.":"Pied de digue et rochers proches.");
-    case 'doelan': return "Jetées et chenal de la ria, en travers du courant.";
+    case 'malachappe': return (r.w>=.6?"Rochers côté large, dans l'écume. ":"")+(mid?"Bout de digue sur la passe de la ria de Brigneau, face à Beg ar Lann sur l'autre rive.":"Pied de digue et rochers proches, rive ouest de l'entrée de Brigneau.");
+    case 'doelan': return "Entrée de la ria entre Beg ar Lann (côté ouest) et Toull Du (côté est), jetées et chenal en travers du courant.";
     case 'laita': return T.dir==='desc'?"Limite courant et eau calme, pendant que l'estuaire se vide.":"Bordures du chenal, montant moins productif.";
     case 'raguenes': return "Pointes rocheuses et plage de Raguénès. L'île ne se pêche qu'autour de la basse mer, en revenant avant que la mer remonte.";
     case 'trenez': return "Île Percée et rochers latéraux de la plage de Trénez. L'île ne se pêche qu'autour de la basse mer, en revenant avant que la mer remonte.";
